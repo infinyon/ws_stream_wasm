@@ -21,6 +21,7 @@ use crate::{import::*, *};
 /// if you need an example.
 ///
 //
+#[derive(Clone)]
 pub struct WsStream {
     ws: SendWrapper<Rc<WebSocket>>,
 
@@ -42,14 +43,14 @@ pub struct WsStream {
 
     // The callback closures.
     //
-    _on_open: SendWrapper<Closure<dyn FnMut()>>,
-    _on_error: SendWrapper<Closure<dyn FnMut()>>,
-    _on_close: SendWrapper<Closure<dyn FnMut(JsCloseEvt)>>,
-    _on_mesg: SendWrapper<Closure<dyn FnMut(MessageEvent)>>,
+    _on_open:  Rc<SendWrapper<Closure<dyn FnMut()>>>,
+    _on_error: Rc<SendWrapper<Closure<dyn FnMut()>>>,
+    _on_close: Rc<SendWrapper<Closure<dyn FnMut(JsCloseEvt)>>>,
+    _on_mesg:  Rc<SendWrapper<Closure<dyn FnMut(MessageEvent)>>>,
 
     // This allows us to store a future to poll when Sink::poll_close is called
     //
-    closer: Option<Pin<Box<dyn Future<Output = ()>>>>,
+    closer: Option<Rc<RefCell<Pin<Box<dyn Future<Output = ()>>>>>>,
 }
 
 impl WsStream {
@@ -133,10 +134,10 @@ impl WsStream {
             sink_waker,
             pharos,
             closer: None,
-            _on_mesg: SendWrapper::new(on_mesg),
-            _on_open: on_open,
-            _on_error: on_error,
-            _on_close: on_close,
+            _on_mesg: Rc::new(SendWrapper::new(on_mesg)),
+            _on_open: Rc::new(on_open),
+            _on_error: Rc::new(on_error),
+            _on_close: Rc::new(on_close),
         }
     }
 
@@ -321,10 +322,10 @@ impl Sink<WsMessage> for WsStream {
                         rx.next().await;
                     };
 
-                    self.closer = Some(closer.boxed());
+                    self.closer = Some(Rc::new(RefCell::new(closer.boxed())));
                 }
 
-                let _ = ready!(Pin::new(&mut self.closer.as_mut().unwrap()).poll(cx));
+                let _ = ready!(Pin::new(&mut (*self.closer.as_mut().unwrap().borrow_mut())).poll(cx));
 
                 Ok(()).into()
             }
