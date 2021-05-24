@@ -8,6 +8,9 @@
 
 > A convenience library for using web sockets in WASM
 
+This is a fork of [ws_stream_wasm](https://crates.io/crates/ws_stream_wasm)
+that adds support for `Clone` to `WsStream` which may or may not create a memory leak.
+
 The _web-sys_ bindings for websockets aren't very convenient to use directly. This crates hopes to alleviate that. Browsers can't create direct TCP connections, and by putting `AsyncRead`/`AsyncWrite` on top of websockets, we can use interfaces that work over any async byte streams from within the browser. The crate has 2 main types. The `WsMeta` type exists to allow access to the web API while you pass `WsStream` to combinators that take ownership of the stream.
 
 **features:**
